@@ -9,4 +9,4 @@ This is a simple project to demonstrate QR code generation using HTML, CSS, and 
 - HTML
 - CSS
 - JavaScri How to Use
-1. Clone the repo:
+1. Clone the repo : https://github.com/fonexalbino/QR generator.git
