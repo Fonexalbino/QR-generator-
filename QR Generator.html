@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Code Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      text-align: center;
+      padding: 30px;
+      background: #e0e5ec;
+      transition: background 0.3s;
+    }
+    .dark {
+      background: #121212;
+      color: #e0e0e0;
+    }
+    .section {
+      background: #e0e5ec;
+      box-shadow: 8px 8px 15px #a3b1c6, -8px -8px 15px #ffffff;
+      border-radius: 20px;
+      padding: 20px;
+      width: 320px;
+      margin: 20px auto;
+      transition: 0.3s ease;
+    }
+    .dark .section {
+      background: #1f1f1f;
+      box-shadow: none;
+    }
+    input, select, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 10px;
+      width: 85%;
+      border-radius: 12px;
+      background: #e0e5ec;
+      border: none;
+      box-shadow: inset 4px 4px 8px #c1c9d3, inset -4px -4px 8px #ffffff;
+      transition: 0.3s;
+    }
+    .dark input, .dark select, .dark button {
+      background: #2a2a2a;
+      color: white;
+      box-shadow: none;
+    }
+    select {
+      cursor: pointer;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #qrcode img {
+      margin-top: 15px;
+      animation: fadeIn 0.5s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    #downloadLink {
+      display: none;
+      background: #007bff;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      text-decoration: none;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      margin-top: 15px;
+      transition: background 0.3s;
+    }
+    #downloadLink:hover {
+      background: #0056b3;
+    }
+    .output {
+      margin-top: 15px;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    #darkToggle {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+    }
+    #history {
+      max-width: 400px;
+      margin: 30px auto;
+      text-align: left;
+    }
+    #history img {
+      width: 80px;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+    #history small {
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+
+  <label id="darkToggle">
+    🌙 Dark Mode
+    <input type="checkbox" onchange="toggleDark(this.checked)">
+  </label>
+
+  <h2>🚀 QR Code Generator</h2>
+
+  <div class="section">
+    <select id="qrType" onchange="changeType()">
+      <option value="text">📝 Text</option>
+      <option value="link">🔗 Link</option>
+      <option value="upi">💸 UPI Payment</option>
+      <option value="contact">📞 Contact</option>
+    </select>
+
+    <div id="inputArea">
+      <input type="text" id="mainInput" placeholder="Enter text here">
+    </div>
+
+    <button onclick="generate()">Generate QR</button>
+
+    <div id="qrcode"></div>
+    <!-- Binary output hidden from user --> <div class="output" id="binaryOutput" style="display: none;"></div>
+    <a id="downloadLink" download="qrcode.png">⬇️ Download QR Code</a>
+  </div>
+
+  <div id="history"></div>
+
+  <script>
+    let history = [];
+
+    function changeType() {
+      const type = document.getElementById("qrType").value;
+      const area = document.getElementById("inputArea");
+      area.innerHTML = "";
+
+      if (type === "text") {
+        area.innerHTML = `<input type="text" id="mainInput" placeholder="Enter text here">`;
+      } else if (type === "link") {
+        area.innerHTML = `<input type="url" id="mainInput" placeholder="Enter full URL (https://...)">`;
+      } else if (type === "upi") {
+        area.innerHTML = `
+          <input type="text" id="upiID" placeholder="Enter UPI ID (xyz@upi)">
+          <input type="text" id="upiName" placeholder="Payee Name (optional)">
+          <input type="text" id="upiAmount" placeholder="Amount (optional)">
+        `;
+      } else if (type === "contact") {
+        area.innerHTML = `
+          <input type="text" id="contactName" placeholder="Full Name">
+          <input type="text" id="contactPhone" placeholder="Phone Number">
+          <input type="email" id="contactEmail" placeholder="Email Address">
+        `;
+      }
+
+      if (type === "text" || type === "link") {
+        area.addEventListener("input", () => {
+          generate();
+        });
+      }
+    }
+
+    function textToBinary(text) {
+      return text.split('')
+        .map(char => char.charCodeAt(0).toString(2).padStart(8, '0'))
+        .join(' ');
+    }
+
+    function generate() {
+      const type = document.getElementById("qrType").value;
+      const qrDiv = document.getElementById("qrcode");
+      const binaryDiv = document.getElementById("binaryOutput");
+      const downloadLink = document.getElementById("downloadLink");
+
+      qrDiv.innerHTML = "";
+      binaryDiv.innerHTML = "";
+      downloadLink.style.display = "none";
+
+      let data = "";
+
+      if (type === "text" || type === "link") {
+        const input = document.getElementById("mainInput").value.trim();
+        if (!input) return;
+        data = input;
+      } else if (type === "upi") {
+        const id = document.getElementById("upiID").value.trim();
+        const name = document.getElementById("upiName").value.trim();
+        const amount = document.getElementById("upiAmount").value.trim();
+        if (!id) return alert("UPI ID is required!");
+        data = `upi://pay?pa=${id}&pn=${encodeURIComponent(name)}&am=${amount}`;
+      } else if (type === "contact") {
+        const name = document.getElementById("contactName").value.trim();
+        const phone = document.getElementById("contactPhone").value.trim();
+        const email = document.getElementById("contactEmail").value.trim();
+        if (!name || !phone) return alert("Name and Phone are required!");
+        data =
+`BEGIN:VCARD
+VERSION:3.0
+N:${name}
+TEL:${phone}
+EMAIL:${email}
+END:VCARD`;
+      }
+
+      QRCode.toDataURL(data, { width: 200 }, function (err, url) {
+        if (err) {
+          console.error(err);
+          return;
+        }
+
+        const img = document.createElement("img");
+        img.src = url;
+        qrDiv.appendChild(img);
+
+        const binary = textToBinary(data);
+        binaryDiv.innerHTML = `🧠 <strong>Binary:</strong><br>${binary}`;
+
+        downloadLink.href = url;
+        downloadLink.style.display = 'inline-block';
+
+        history.push({ data, imgUrl: url });
+        updateHistory();
+      });
+    }
+
+    function updateHistory() {
+      const container = document.getElementById("history");
+      if (!container) return;
+      container.innerHTML = "<h3>📜 Recent QR Codes</h3>" + history.slice(-5).reverse().map(h => `
+        <div>
+          <img src="${h.imgUrl}">
+          <small>${h.data}</small>
+        </div>
+      `).join('');
+    }
+
+    function toggleDark(on) {
+      document.body.classList.toggle("dark", on);
+    }
+    
+    // Initialize
+    changeType();
+  </script>
+</body>
+</html>
